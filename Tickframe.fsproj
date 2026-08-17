@@ -25,7 +25,6 @@
 
   <ItemGroup>
     <PackageReference Include="FParsec" Version="1.1.1" />
-    <PackageReference Include="Deedle" Version="8.0.0" />
     <PackageReference Include="FacioQuo.Stock.Indicators" Version="3.0.0" />
   </ItemGroup>
 

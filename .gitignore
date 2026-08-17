@@ -4,3 +4,4 @@ obj/
 .agents/
 .claude/
 .commandcode/
+BenchmarkDotNet.Artifacts/
