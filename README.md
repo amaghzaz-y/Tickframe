@@ -159,45 +159,31 @@ dotnet format   # if Fantomas is installed
 
 ## Benchmarks
 
-Preliminary **Dry** numbers (BenchmarkDotNet 0.15.8, .NET 10, 12th Gen i5-12500H,
-Release, `Dry` with warmup=1/iter=1 — expect noise; `Mean` here includes process
-startup overhead, so compare *relative* cost across N/directives, not absolute ms).
-
-### Parse (directive size, not N)
-
-| Method | Mean | Allocated |
-|---|---:|---:|
-| ParseSimple (`rsi:14 > close`) | 17.7 ms | 5 KB |
-| ParseComplex (`ma:5 // ma:20`) | 18.0 ms | 7.3 KB |
-| ParseNested (`ma:10@(ma:5) + boll.upper`) | 19.1 ms | 9.3 KB |
-| ParseSubArgs (`macd.signal:,,5`) | 18.2 ms | 4.8 KB |
-
-### Scale — `Directive.eval` across N candles (Dry)
-
-| Method | N=500 | N=1000 | N=5000 | N=10000 | N=20000 |
-|---|---:|---:|---:|---:|---:|
-| `ma:20` | 69.3 ms | 70.1 ms | 73.2 ms | 78.6 ms | 85.4 ms |
-| `rsi:14` | 71.4 ms | 71.1 ms | 72.8 ms | 79.5 ms | 81.9 ms |
-| `ema:20` | 70.6 ms | 68.6 ms | 72.1 ms | 79.7 ms | 82.9 ms |
-| `macd.signal:,,5` | 68.9 ms | 70.0 ms | 73.0 ms | 81.1 ms | 81.4 ms |
-| `boll.upper` | 70.4 ms | 73.9 ms | 76.5 ms | 83.5 ms | 88.1 ms |
-| `atr:14` | 67.8 ms | 68.5 ms | 74.6 ms | 86.1 ms | 85.0 ms |
-| `close` | 31.7 ms | 30.8 ms | 32.0 ms | 33.4 ms | 34.0 ms |
-| `ma:5 // ma:20` (cross, 2× ma) | 72.8 ms | 71.3 ms | 83.4 ms | 85.9 ms | 90.5 ms |
-| `ma:10@(ma:5)` (nested) | 70.7 ms | 71.3 ms | 80.6 ms | 83.2 ms | 89.4 ms |
-
-Pure ops (`close`, `close + open * 2`, `close // open`) scale near-linearly
-with N (just `Array.map2/mapi`), while FacioQuo-backed indicators add
-`Bar`→`IReusable`→`ToXxx` overhead and allocations (e.g. `boll.upper` at
-20k ≈ 10 MB). For production numbers use a real run:
+Full results are auto-generated to [`BENCHMARKS.md`](./BENCHMARKS.md) on every
+benchmark run:
 
 ```sh
-# From Program.fs, switch config from Job.Dry to Job.Default before publishing
-dotnet run -c Release --project Tickframe.Benchmarks -- --filter="*Scale*"
+dotnet run -c Release --project Tickframe.Benchmarks -- --all
+# writes BENCHMARKS.md (summary + detailed tables) + BenchmarkDotNet.Artifacts/results/*.md/.csv/.html
 ```
 
+`BENCHMARKS.md` contains:
+
+- **Summary** — what each group measures and how to read the numbers
+- **Parse** — directive string → `Expr` (FParsec), independent of N
+- **Eval (pure, N=80)** — column/arithmetic/comparison/cross/logical
+- **Lookback** — `Directive.lookback` (no FacioQuo call)
+- **Scale — indicators** — `Directive.eval` at N=500/1000/5000/10000/20000
+  (`ma:20`, `rsi:14`, `ema:20`, `macd.signal:,,5`, `boll.upper`, `atr:14`,
+  `close`, `ma:5 // ma:20`, `ma:10@(ma:5)`)
+- **Scale — pure ops** — `close + open * 2` / `close // open` at same N
+
+The shipped `BENCHMARKS.md` is produced in `Job.Dry` mode (warmup=1/iter=1)
+for CI speed — use `Job.Default` for publication-quality figures.
+
 Benchmark sources: `Tickframe.Benchmarks/Program.fs` (`Fixtures`, `ParseBenchmarks`,
-`EvalPureBenchmarks`, `ScaleBenchmarks`, `ScalePureBenchmarks`, `LookbackBenchmarks`).
+`EvalPureBenchmarks`, `ScaleBenchmarks`, `ScalePureBenchmarks`, `LookbackBenchmarks`)
+— filtered runs: `dotnet run -c Release --project Tickframe.Benchmarks -- --filter="*ScaleBenchmarks*"`.
 
 ## License
 

@@ -1,6 +1,8 @@
 ﻿open System
+open System.IO
 open BenchmarkDotNet.Attributes
 open BenchmarkDotNet.Configs
+open BenchmarkDotNet.Exporters
 open BenchmarkDotNet.Jobs
 open BenchmarkDotNet.Running
 open Tickframe
@@ -88,25 +90,41 @@ type ScalePureBenchmarks() =
     [<Benchmark>] member this.AddColumns() = Directive.eval this.Frame "close + open * 2" |> ignore
     [<Benchmark>] member this.CrossPure() = Directive.eval this.Frame "close // open" |> ignore
 
+module BenchmarkArtifacts =
+
+    let repoRoot () =
+        let exeDir = AppContext.BaseDirectory
+        let rec walk (dir: DirectoryInfo) =
+            if dir = null then DirectoryInfo(exeDir)
+            elif File.Exists(Path.Combine(dir.FullName, "Tickframe.fsproj")) then dir
+            else walk dir.Parent
+        walk (DirectoryInfo(exeDir))
+
+    let artifactsDir () = Path.Combine(repoRoot().FullName, "BenchmarkDotNet.Artifacts", "results")
+
+    let latestReports () =
+        let dir = artifactsDir ()
+        if not (Directory.Exists dir) then [||]
+        else
+            Directory.GetFiles(dir, "*.md")
+            |> Array.sortByDescending (fun f -> File.GetLastWriteTimeUtc f)
+
+    let readLatest (pattern: string) =
+        latestReports ()
+        |> Array.tryFind (fun f -> f.Contains(pattern))
+        |> Option.map File.ReadAllText
+        |> Option.defaultValue ""
+
 [<EntryPoint>]
 let main argv =
     let runAll = argv |> Array.contains "--all"
     let runFilter =
         argv |> Array.tryFind (fun a -> a.StartsWith("--filter=")) |> Option.map (fun s -> s.Substring(9))
+    let skipWrite = argv |> Array.contains "--no-write"
 
-    let config = ManualConfig.Create(DefaultConfig.Instance).AddJob(Job.Dry.WithWarmupCount(1).WithIterationCount(1))
-
-    let runBenchmarks () =
-        match runFilter with
-        | Some f -> BenchmarkSwitcher.FromAssembly(typeof<ParseBenchmarks>.Assembly).Run([| "--filter"; f |], config) |> ignore
-        | None when runAll -> BenchmarkRunner.Run(typeof<ParseBenchmarks>.Assembly, config) |> ignore
-        | None ->
-            printfn "Tickframe benchmarks"
-            printfn "  dotnet run -c Release --project Tickframe.Benchmarks -- --all            # all groups"
-            printfn "  dotnet run -c Release --project Tickframe.Benchmarks -- --filter=*Scale*  # scale only"
-            printfn ""
-            BenchmarkSwitcher.FromAssembly(typeof<ParseBenchmarks>.Assembly).Run([||], config) |> ignore
-        0
+    let config =
+        ManualConfig.Create(DefaultConfig.Instance)
+            .AddJob(Job.Dry.WithWarmupCount(1).WithIterationCount(1))
 
     let allowRun =
         #if DEBUG
@@ -118,4 +136,72 @@ let main argv =
         printfn "Benchmarks must be run in Release configuration: dotnet run -c Release --project Tickframe.Benchmarks -- --all"
         1
     else
-        runBenchmarks ()
+        let summaries =
+            match runFilter with
+            | Some f -> BenchmarkSwitcher.FromAssembly(typeof<ParseBenchmarks>.Assembly).Run([| "--filter"; f |], config)
+            | None when runAll -> BenchmarkRunner.Run(typeof<ParseBenchmarks>.Assembly, config)
+            | None ->
+                printfn "Tickframe benchmarks"
+                printfn "  dotnet run -c Release --project Tickframe.Benchmarks -- --all            # all groups"
+                printfn "  dotnet run -c Release --project Tickframe.Benchmarks -- --filter=*Scale*  # scale only"
+                printfn ""
+                BenchmarkSwitcher.FromAssembly(typeof<ParseBenchmarks>.Assembly).Run([||], config)
+
+        if not skipWrite then
+            let outPath = Path.Combine(BenchmarkArtifacts.repoRoot().FullName, "BENCHMARKS.md")
+            let parseMd  = BenchmarkArtifacts.readLatest "ParseBenchmarks"
+            let pureMd   = BenchmarkArtifacts.readLatest "EvalPureBenchmarks"
+            let lookMd   = BenchmarkArtifacts.readLatest "LookbackBenchmarks"
+            let scaleMd  = BenchmarkArtifacts.readLatest "ScaleBenchmarks"
+            let scaleP   = BenchmarkArtifacts.readLatest "ScalePureBenchmarks"
+
+            let ver =
+                try
+                    let psi = System.Diagnostics.ProcessStartInfo("dotnet", "--version")
+                    psi.RedirectStandardOutput <- true
+                    psi.UseShellExecute <- false
+                    use p = System.Diagnostics.Process.Start(psi)
+                    p.WaitForExit()
+                    p.StandardOutput.ReadToEnd().Trim()
+                with _ -> "unknown"
+            let env = sprintf "BenchmarkDotNet 0.15.x — .NET %s — %s — %s" ver Environment.OSVersion.VersionString (DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm UTC"))
+
+            let section title md =
+                if String.IsNullOrWhiteSpace md then sprintf "## %s\n\n_No report yet — run `dotnet run -c Release --project Tickframe.Benchmarks -- --all`._\n" title
+                else sprintf "## %s\n\n%s\n" title md
+
+            let doc = String.concat "\n" [
+                "# BENCHMARKS"
+                ""
+                sprintf "> Auto-generated by `Tickframe.Benchmarks` on %s. Do not edit by hand — re-run benchmarks to refresh." (DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm UTC"))
+                ""
+                "## Summary"
+                ""
+                "- **Parse** — directive string → `Expr` (FParsec), independent of N."
+                "- **Eval (pure)** — 80-row fixture, column/arithmetic/comparison/cross/logical."
+                "- **Lookback** — `Directive.lookback` (no FacioQuo call)."
+                "- **Scale (indicator)** — `Directive.eval` at N=500/1000/5000/10000/20000 (FacioQuo `Bar`→`IReusable` bridge)."
+                "- **Scale (pure)** — `close + open * 2` / `close // open` at same N (no FacioQuo)."
+                ""
+                sprintf "Environment: %s" env
+                ""
+                "**Config**: `Job.Dry` (warmup=1, iter=1) — relative comparisons are meaningful; absolute ms includes process-startup overhead. For publishable numbers use `Job.Default` (or `--all` with a non-Dry config)."
+                ""
+                section "Parse" parseMd
+                section "Eval (pure, N=80)" pureMd
+                section "Lookback" lookMd
+                section "Scale — indicators" scaleMd
+                section "Scale — pure ops" scaleP
+                "## How to reproduce"
+                ""
+                "```sh"
+                "dotnet run -c Release --project Tickframe.Benchmarks -- --all"
+                "# filtered:"
+                "dotnet run -c Release --project Tickframe.Benchmarks -- --filter=\"*ScaleBenchmarks*\""
+                "# also writes BenchmarkDotNet.Artifacts/results/*.md/.csv/.html"
+                "```"
+            ]
+            File.WriteAllText(outPath, doc) |> ignore
+            printfn "Wrote %s" outPath
+        summaries |> ignore
+        0
