@@ -13,8 +13,7 @@ open Tickframe
 open Tickframe.Tests.Shared
 
 /// True when the registry has been implemented (any indicator resolves).
-let registryReady : bool =
-    IndicatorRegistry.tryResolve "rsi" |> Option.isSome
+let registryReady: bool = IndicatorRegistry.tryResolve "rsi" |> Option.isSome
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -24,10 +23,16 @@ let registryReady : bool =
 let private sma (period: int) (src: float[]) : float[] =
     let out = Array.create src.Length Double.NaN
     let mutable sum = 0.0
+
     for i in 0 .. src.Length - 1 do
         sum <- sum + src.[i]
-        if i >= period then sum <- sum - src.[i - period]
-        if i >= period - 1 then out.[i] <- sum / float period
+
+        if i >= period then
+            sum <- sum - src.[i - period]
+
+        if i >= period - 1 then
+            out.[i] <- sum / float period
+
     out
 
 /// Index of the first i > 0 where a crosses up through b, or None.
@@ -43,6 +48,7 @@ let private firstCrossDown (a: float[]) (b: float[]) : int option =
 /// Element-wise array equality for xUnit (avoids Assert.Equal array overload ambiguity).
 let private assertArrayEqual (expected: 'T[]) (actual: 'T[]) =
     Assert.Equal(expected.Length, actual.Length)
+
     for i in 0 .. expected.Length - 1 do
         Assert.Equal<'T>(expected.[i], actual.[i])
 
@@ -55,7 +61,8 @@ let ``close evaluates to a Float series of length 80 matching the fixture`` () =
     let s = Directive.eval frame "close"
     let a = floatOf s
     Assert.Equal(80, a.Length)
-    for i in 0 .. 79 do
+
+    for i in 0..79 do
         assertFloat (float candles.[i].Close) a.[i]
 
 [<Fact>]
@@ -78,7 +85,8 @@ let ``close column has no NaN warm-up rows`` () =
 
 [<Fact>]
 let ``rsi:14 evaluates to a Float series of length 80 with NaN warm-up rows`` () =
-    if not registryReady then ()  // registry not yet implemented; skip
+    if not registryReady then
+        () // registry not yet implemented; skip
     else
         let a = floatOf (Directive.eval frame "rsi:14")
         Assert.Equal(80, a.Length)
@@ -90,7 +98,8 @@ let ``rsi:14 evaluates to a Float series of length 80 with NaN warm-up rows`` ()
 
 [<Fact>]
 let ``rsi:14 > close evaluates to a Bool series of length 80`` () =
-    if not registryReady then ()  // registry not yet implemented; skip
+    if not registryReady then
+        () // registry not yet implemented; skip
     else
         let b = boolOf (Directive.eval frame "rsi:14 > close")
         Assert.Equal(80, b.Length)
@@ -99,24 +108,29 @@ let ``rsi:14 > close evaluates to a Bool series of length 80`` () =
 
 [<Fact>]
 let ``ma:20 evaluates to a Float series with the first 19 entries NaN`` () =
-    if not registryReady then ()  // registry not yet implemented; skip
+    if not registryReady then
+        () // registry not yet implemented; skip
     else
         let a = floatOf (Directive.eval frame "ma:20")
         Assert.Equal(80, a.Length)
-        for i in 0 .. 18 do
+
+        for i in 0..18 do
             Assert.True(Double.IsNaN a.[i], sprintf "expected warm-up NaN at index %d" i)
+
         Assert.False(Double.IsNaN a.[79], "expected a finite value at the last row")
 
 [<Fact>]
 let ``ma:20 > ma:50 evaluates to a Bool series of length 80`` () =
-    if not registryReady then ()  // registry not yet implemented; skip
+    if not registryReady then
+        () // registry not yet implemented; skip
     else
         let b = boolOf (Directive.eval frame "ma:20 > ma:50")
         Assert.Equal(80, b.Length)
 
 [<Fact>]
 let ``parenthesized (ma:20 > ma:50) is identical to the unparenthesized form`` () =
-    if not registryReady then ()  // registry not yet implemented; skip
+    if not registryReady then
+        () // registry not yet implemented; skip
     else
         let plain = boolOf (Directive.eval frame "ma:20 > ma:50")
         let grouped = boolOf (Directive.eval frame "(ma:20 > ma:50)")
@@ -128,6 +142,7 @@ let ``ma:5 // ma:20 is a Bool series crossing up at the expected index`` () =
     Assert.Equal(80, b.Length)
     let ma5 = floatOf (Directive.eval frame "ma:5")
     let ma20 = floatOf (Directive.eval frame "ma:20")
+
     match firstCrossUp ma5 ma20 with
     | Some idx -> Assert.True(b.[idx], sprintf "expected CrossUp at index %d" idx)
     | None -> Assert.True(false, "fixture must contain a ma5/ma20 cross-up")
@@ -138,13 +153,15 @@ let ``ma:5 \ ma:20 is a Bool series crossing down at the expected index`` () =
     Assert.Equal(80, b.Length)
     let ma5 = floatOf (Directive.eval frame "ma:5")
     let ma20 = floatOf (Directive.eval frame "ma:20")
+
     match firstCrossDown ma5 ma20 with
     | Some idx -> Assert.True(b.[idx], sprintf "expected CrossDown at index %d" idx)
     | None -> Assert.True(false, "fixture must contain a ma5/ma20 cross-down")
 
 [<Fact>]
 let ``macd.signal:,,5 evaluates to a Float series with NaN warm-up rows`` () =
-    if not registryReady then ()  // registry not yet implemented; skip
+    if not registryReady then
+        () // registry not yet implemented; skip
     else
         let a = floatOf (Directive.eval frame "macd.signal:,,5")
         Assert.Equal(80, a.Length)
@@ -153,21 +170,24 @@ let ``macd.signal:,,5 evaluates to a Float series with NaN warm-up rows`` () =
 
 [<Fact>]
 let ``boll.upper evaluates to a Float series of length 80`` () =
-    if not registryReady then ()  // registry not yet implemented; skip
+    if not registryReady then
+        () // registry not yet implemented; skip
     else
         let a = floatOf (Directive.eval frame "boll.upper")
         Assert.Equal(80, a.Length)
 
 [<Fact>]
 let ``increase at ma20 over close evaluates to a Bool series of length 80`` () =
-    if not registryReady then ()  // registry not yet implemented; skip
+    if not registryReady then
+        () // registry not yet implemented; skip
     else
         let b = boolOf (Directive.eval frame "increase:3@(ma:20@close)")
         Assert.Equal(80, b.Length)
 
 [<Fact>]
 let ``repeat at close greater than open evaluates to a Bool series of length 80`` () =
-    if not registryReady then ()  // registry not yet implemented; skip
+    if not registryReady then
+        () // registry not yet implemented; skip
     else
         let b = boolOf (Directive.eval frame "repeat:3@(close > open)")
         Assert.Equal(80, b.Length)
@@ -177,7 +197,12 @@ let ``repeat at close greater than open evaluates to a Bool series of length 80`
 // ---------------------------------------------------------------------------
 
 let private candle (ts: DateTime) (o: decimal) (h: decimal) (l: decimal) (c: decimal) (v: decimal) : Candle =
-    { Timestamp = ts; Open = o; High = h; Low = l; Close = c; Volume = v }
+    { Timestamp = ts
+      Open = o
+      High = h
+      Low = l
+      Close = c
+      Volume = v }
 
 let private tinyFrame (opens: decimal[]) (closes: decimal[]) : OhlcvFrame =
     [ for i in 0 .. opens.Length - 1 ->
@@ -245,7 +270,8 @@ let ``arithmetic on columns matches the fixture values`` () =
     let b = floatOf (Directive.eval frame "close - open")
     let m = floatOf (Directive.eval frame "close * open")
     let d = floatOf (Directive.eval frame "close / open")
-    for i in 0 .. 79 do
+
+    for i in 0..79 do
         let c = float candles.[i].Close
         let o = float candles.[i].Open
         assertFloat (c + o) a.[i]
@@ -272,7 +298,8 @@ let ``NaN comparisons follow IEEE semantics (total bool, never NaN)`` () =
     let d = boolOf (Directive.eval frame "0 / 0 > 1")
     let e = boolOf (Directive.eval frame "0 / 0 >= 1")
     let f = boolOf (Directive.eval frame "0 / 0 != 1")
-    for i in 0 .. 79 do
+
+    for i in 0..79 do
         Assert.False(a.[i])
         Assert.False(b.[i])
         Assert.False(c.[i])
@@ -282,7 +309,13 @@ let ``NaN comparisons follow IEEE semantics (total bool, never NaN)`` () =
 
 [<Fact>]
 let ``all comparison operators produce a Bool series of length 80`` () =
-    for directive in [ "close < open"; "close <= open"; "close == open"; "close != open"; "close >= open"; "close > open" ] do
+    for directive in
+        [ "close < open"
+          "close <= open"
+          "close == open"
+          "close != open"
+          "close >= open"
+          "close > open" ] do
         let b = boolOf (Directive.eval frame directive)
         Assert.Equal(80, b.Length)
 
@@ -290,14 +323,16 @@ let ``all comparison operators produce a Bool series of length 80`` () =
 let ``unary negate flips the sign of a column`` () =
     let a = floatOf (Directive.eval frame "-close")
     let close = floatOf (Directive.eval frame "close")
-    for i in 0 .. 79 do
+
+    for i in 0..79 do
         assertFloat (-close.[i]) a.[i]
 
 [<Fact>]
 let ``number literals evaluate to a constant series`` () =
     let a = floatOf (Directive.eval frame "42")
     Assert.Equal(80, a.Length)
-    for i in 0 .. 79 do
+
+    for i in 0..79 do
         Assert.Equal(42.0, a.[i])
 
 // ---------------------------------------------------------------------------
@@ -358,8 +393,7 @@ let ``lookback of a column is 0`` () =
     Assert.Equal(0, Directive.lookback "close")
 
 [<Fact>]
-let ``lookback of a number is 0`` () =
-    Assert.Equal(0, Directive.lookback "2")
+let ``lookback of a number is 0`` () = Assert.Equal(0, Directive.lookback "2")
 
 [<Fact>]
 let ``lookback of a binary expression is the max of the children`` () =
@@ -374,7 +408,8 @@ let ``lookback of a unary expression propagates the operand`` () =
 [<Fact>]
 let ``lookback of an indicator expression sums operands when the registry is ready`` () =
     // Registry-dependent by construction; skipped until the registry lands.
-    if not registryReady then ()
+    if not registryReady then
+        ()
     else
         Assert.True(Directive.lookback "ma:20" >= 19)
         Assert.True(Directive.lookback "ma:20@close" >= 19)

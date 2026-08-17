@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/Tickframe.Tests/Tickframe.Tests.fsproj" />
+  </Folder>
+  <Project Path="Tickframe.Benchmarks/Tickframe.Benchmarks.fsproj" />
+  <Project Path="Tickframe.fsproj" />
+</Solution>

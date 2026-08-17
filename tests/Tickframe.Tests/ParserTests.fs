@@ -4,5 +4,4 @@ open Xunit
 open Tickframe
 
 [<Fact>]
-let ``placeholder`` () =
-    Assert.True(true)
+let ``placeholder`` () = Assert.True(true)
