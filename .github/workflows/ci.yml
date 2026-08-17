@@ -3,6 +3,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -18,3 +24,27 @@ jobs:
       - run: dotnet fantomas --check .
       - run: dotnet dotnet-fsharplint lint Tickframe.slnx
       - run: dotnet test -c Release --no-build
+      - run: dotnet pack Tickframe.fsproj -c Release --no-build -o ./artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget
+          path: artifacts/*.nupkg
+
+  release:
+    if: github.event_name == 'release' && github.event.action == 'published'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget
+          path: artifacts
+      - if: vars.NUGET_API_KEY != '' || secrets.NUGET_API_KEY != ''
+        run: dotnet nuget push "artifacts/*.nupkg" --api-key "${{ secrets.NUGET_API_KEY || vars.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+      - run: gh release upload "${{ github.event.release.tag_name }}" artifacts/*.nupkg --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
