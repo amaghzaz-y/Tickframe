@@ -165,8 +165,8 @@ let corr     = Directive.eval frame "correlation:20@close,open"   // 2-operand (
 All indicators live in `Registry.fs`. The registry bridges
 `float[]` operands → `decimal` → synthetic `Bar[]` / `Reusable.ToReusable(..., Close)` →
 FacioQuo `ToXxx` → `Float`/`Bool` projection (`decimal → double` at the boundary;
-`null`/`Nullable` → `NaN` for floats, `false` for bools). See
-`docs/facioquo-v3-api.md` for the FacioQuo surface and input families.
+`null`/`Nullable` → `NaN` for floats, `false` for bools). FacioQuo signatures
+are verified against `FacioQuo.Stock.Indicators.xml` in the NuGet package.
 
 **Close-based** (`IReusable`) — `ma`/`sma`, `ema`, `wma`, `hma`, `dema`, `tema`,
 `smma`/`mma`/`rma`, `epma`/`lsma`, `alma`, `kama`, `mama`/`mama.fama`, `t3`,
@@ -249,7 +249,6 @@ evaluator resolves `SeriesRef`s before `Compute` is called.
 - `Library.fs` — `Directive.eval` / `lookback` (`parse` then `eval`)
 - `Tickframe.Benchmarks/` — BenchmarkDotNet harness (`Program.fs`)
 - `tests/Tickframe.Tests/` — xUnit + 80-row synthetic fixture (`Shared.fs`)
-- `docs/facioquo-v3-api.md` — verified FacioQuo v3 signatures for the registry
 - `Tickframe.Benchmarks/`, `tests/Tickframe.Tests/` — non-library hosts that reference `Tickframe.fsproj`
 
 Compile order (in `Tickframe.fsproj`): `Contract → Parser → Registry → Evaluator → Library`.

@@ -12,7 +12,6 @@ Dependencies: `FParsec 1.1.1`, `FacioQuo.Stock.Indicators 3.0.0` (net10.0). No D
 - `Registry.fs` — `Registry.buildTable` / `IndicatorRegistry` (resolve/tryResolve/table) — uniform bridge: `float[]` operands → `decimal` → synthetic `Bar`/`Reusable.ToReusable(..., CandlePart.Close)` → FacioQuo `ToXxx`. `Null`/`Nullable` → `NaN`/`false` via `toFloatN`/`toFloatDecimal`. Includes synthetic `increase`/`repeat` (bool) and `kdj` via `Stoch.ToStoch` (J = `StochResult.J`).
 - `Library.fs` — `Directive.eval` / `lookback` (parse then eval)
 - `Tickframe.Benchmarks/` — BenchmarkDotNet harness (directive eval, parse, pure ops, cross, indicator subset, lookback, `BENCHMARKS.md`)
-- `docs/facioquo-v3-api.md` — verified FacioQuo v3 signatures
 - Compile order in `Tickframe.fsproj`: Contract -> Parser -> Registry -> Evaluator -> Library
 
 Parser gotchas: `pArgList` must use `attempt` around comma branches so `rsi:14 > close` does not consume `>` as an empty arg continuation; `pSeriesList` and `pIndicatorCore` `.`/`:`/`@` prefixes must be `attempt`d.
