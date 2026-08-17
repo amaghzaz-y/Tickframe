@@ -69,12 +69,9 @@ module Evaluator =
 
         | Indicator call ->
             let spec = IndicatorRegistry.resolve call.Name
-            match call.Sub with
-            | Some sub ->
-                match Map.tryFind sub spec.SubCommands with
-                | Some subSpec -> subSpec.Compute call { Frame = frame; Resolve = resolveSeriesRef frame }
-                | None -> raise (DirectiveValueError $"unknown sub-command '{call.Name}.{sub}'")
-            | None -> spec.Compute call { Frame = frame; Resolve = resolveSeriesRef frame }
+            if call.Sub.IsSome && not (Map.containsKey call.Sub.Value spec.SubCommands) then
+                raise (DirectiveValueError $"unknown sub-command '{call.Name}.{call.Sub.Value}'")
+            spec.Compute call { Frame = frame; Resolve = resolveSeriesRef frame }
 
     let rec lookback (expr: Expr) : int =
         match expr with

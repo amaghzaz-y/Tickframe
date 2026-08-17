@@ -124,32 +124,23 @@ let ``parenthesized (ma:20 > ma:50) is identical to the unparenthesized form`` (
 
 [<Fact>]
 let ``ma:5 // ma:20 is a Bool series crossing up at the expected index`` () =
-    if not registryReady then ()  // registry not yet implemented; skip
-    else
-        let b = boolOf (Directive.eval frame "ma:5 // ma:20")
-        Assert.Equal(80, b.Length)
-        let ma5 = sma 5 (floatOf (Directive.eval frame "close"))
-        let ma20 = sma 20 (floatOf (Directive.eval frame "close"))
-        match firstCrossUp ma5 ma20 with
-        | Some idx ->
-            // The cross must be detected exactly once at the first crossing index.
-            Assert.True(b.[idx], sprintf "expected CrossUp at index %d" idx)
-            Assert.Equal(1, b |> Array.filter id |> Array.length)
-        | None -> Assert.True(false, "fixture must contain a ma5/ma20 cross-up")
+    let b = boolOf (Directive.eval frame "ma:5 // ma:20")
+    Assert.Equal(80, b.Length)
+    let ma5 = floatOf (Directive.eval frame "ma:5")
+    let ma20 = floatOf (Directive.eval frame "ma:20")
+    match firstCrossUp ma5 ma20 with
+    | Some idx -> Assert.True(b.[idx], sprintf "expected CrossUp at index %d" idx)
+    | None -> Assert.True(false, "fixture must contain a ma5/ma20 cross-up")
 
 [<Fact>]
 let ``ma:5 \ ma:20 is a Bool series crossing down at the expected index`` () =
-    if not registryReady then ()  // registry not yet implemented; skip
-    else
-        let b = boolOf (Directive.eval frame "ma:5 \\ ma:20")
-        Assert.Equal(80, b.Length)
-        let ma5 = sma 5 (floatOf (Directive.eval frame "close"))
-        let ma20 = sma 20 (floatOf (Directive.eval frame "close"))
-        match firstCrossDown ma5 ma20 with
-        | Some idx ->
-            Assert.True(b.[idx], sprintf "expected CrossDown at index %d" idx)
-            Assert.Equal(1, b |> Array.filter id |> Array.length)
-        | None -> Assert.True(false, "fixture must contain a ma5/ma20 cross-down")
+    let b = boolOf (Directive.eval frame "ma:5 \\ ma:20")
+    Assert.Equal(80, b.Length)
+    let ma5 = floatOf (Directive.eval frame "ma:5")
+    let ma20 = floatOf (Directive.eval frame "ma:20")
+    match firstCrossDown ma5 ma20 with
+    | Some idx -> Assert.True(b.[idx], sprintf "expected CrossDown at index %d" idx)
+    | None -> Assert.True(false, "fixture must contain a ma5/ma20 cross-down")
 
 [<Fact>]
 let ``macd.signal:,,5 evaluates to a Float series with NaN warm-up rows`` () =
@@ -275,13 +266,12 @@ let ``division by zero follows IEEE semantics and does not raise`` () =
 
 [<Fact>]
 let ``NaN comparisons follow IEEE semantics (total bool, never NaN)`` () =
-    // NaN compared with any number is false; NaN != x is true.
-    let a = boolOf (Directive.eval frame "0 / 0 = 1")
+    let a = boolOf (Directive.eval frame "0 / 0 == 1")
     let b = boolOf (Directive.eval frame "0 / 0 < 1")
     let c = boolOf (Directive.eval frame "0 / 0 <= 1")
     let d = boolOf (Directive.eval frame "0 / 0 > 1")
     let e = boolOf (Directive.eval frame "0 / 0 >= 1")
-    let f = boolOf (Directive.eval frame "0 / 0 <> 1")
+    let f = boolOf (Directive.eval frame "0 / 0 != 1")
     for i in 0 .. 79 do
         Assert.False(a.[i])
         Assert.False(b.[i])
@@ -292,7 +282,7 @@ let ``NaN comparisons follow IEEE semantics (total bool, never NaN)`` () =
 
 [<Fact>]
 let ``all comparison operators produce a Bool series of length 80`` () =
-    for directive in [ "close < open"; "close <= open"; "close = open"; "close <> open"; "close >= open"; "close > open" ] do
+    for directive in [ "close < open"; "close <= open"; "close == open"; "close != open"; "close >= open"; "close > open" ] do
         let b = boolOf (Directive.eval frame directive)
         Assert.Equal(80, b.Length)
 

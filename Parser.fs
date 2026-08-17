@@ -6,24 +6,22 @@ module DirectiveParser =
 
     let private columnNames = Set.ofList [ "open"; "high"; "low"; "close"; "volume" ]
 
-    let private strWs (s: string) = pstring s .>> spaces
-
-    let private pCrossUp   = strWs "//" >>% CrossUp
-    let private pCrossDown = strWs "\\" >>% CrossDown
-    let private pCrossAny  = strWs "><" >>% CrossAny
-    let private pGt        = strWs ">"  >>% Gt
-    let private pGe        = strWs ">=" >>% Ge
-    let private pLt        = strWs "<"  >>% Lt
-    let private pLe        = strWs "<=" >>% Le
-    let private pEq        = strWs "==" >>% Eq
-    let private pNe        = strWs "!=" >>% Ne
-    let private pAdd       = strWs "+"  >>% Add
-    let private pSub       = strWs "-"  >>% Sub
-    let private pMul       = strWs "*"  >>% Mul
-    let private pDiv       = strWs "/"  >>% Div
-    let private pAnd       = strWs "&"  >>% And
-    let private pOr        = strWs "|"  >>% Or
-    let private pXor       = strWs "^"  >>% Xor
+    let private pCrossUp   = pstring "//" >>% CrossUp
+    let private pCrossDown = pstring "\\" >>% CrossDown
+    let private pCrossAny  = pstring "><" >>% CrossAny
+    let private pGt        = pstring ">"  >>% Gt
+    let private pGe        = pstring ">=" >>% Ge
+    let private pLt        = pstring "<"  >>% Lt
+    let private pLe        = pstring "<=" >>% Le
+    let private pEq        = pstring "==" >>% Eq
+    let private pNe        = pstring "!=" >>% Ne
+    let private pAdd       = pstring "+"  >>% Add
+    let private pSub       = pstring "-"  >>% Sub
+    let private pMul       = pstring "*"  >>% Mul
+    let private pDiv       = pstring "/"  >>% Div
+    let private pAnd       = pstring "&"  >>% And
+    let private pOr        = pstring "|"  >>% Or
+    let private pXor       = pstring "^"  >>% Xor
 
     let private pNumber : Parser<Expr, unit> =
         pfloat >>= fun v ->
@@ -35,89 +33,81 @@ module DirectiveParser =
         |>> (fun (c, rest) -> string c + rest)
 
     let private pExprRef, pExprRefImpl = createParserForwardedToRef<Expr, unit> ()
-
-    let private pArg : Parser<string, unit> =
-        manyChars (letter <|> digit <|> pchar '_' <|> pchar '.' <|> pchar '-')
-        <|> preturn ""
+    let private pCrossRef, pCrossRefImpl = createParserForwardedToRef<Expr, unit> ()
 
     let private pArgList : Parser<string list, unit> =
-        pArg .>>. many (pchar ',' .>> spaces >>. pArg)
-        |>> (fun (first, rest) -> first :: rest)
+        let pToken = many1Chars (letter <|> digit <|> pchar '_' <|> pchar '.' <|> pchar '-')
+        let pSlot = attempt pToken <|> preturn ""
+        attempt ((pSlot .>> spaces) .>>. many (attempt (pchar ',' >>. spaces >>. pSlot .>> spaces))
+        |>> (fun (first, rest) -> first :: rest))
+        <|> preturn []
 
     let private pSeriesList : Parser<SeriesRef list, unit> =
         let pSeries =
-            (attempt (pchar '(' .>> spaces >>. pExprRef .>> pchar ')' .>> spaces |>> SeriesExpr))
-            <|> (pIdentifier |>> SeriesColumn)
-        pSeries .>>. many (pchar ',' .>> spaces >>. pSeries)
-        |>> (fun (first, rest) -> first :: rest)
+            (attempt (pchar '(' >>. spaces >>. pCrossRef .>> spaces .>> pchar ')' |>> SeriesExpr))
+            <|> (pIdentifier |>> fun n -> SeriesColumn (n.ToLowerInvariant()))
+        attempt (pchar '@' >>. spaces >>. pSeries .>>. many (pchar ',' >>. spaces >>. pSeries)
+        |>> (fun (first, rest) -> first :: rest))
 
-    let private pIndicator : Parser<Expr, unit> =
+    let private pIndicatorCore : Parser<Expr, unit> =
         pIdentifier .>> spaces >>= fun command ->
-        let command = command.ToLowerInvariant()
-        let pSub =
-            (pchar '.' .>> spaces >>. pIdentifier .>> spaces)
-            |>> (fun s -> Some (s.ToLowerInvariant()))
-        let pArgs =
-            (pchar ':' .>> spaces >>. pArgList)
-            |>> Some
-        let pSeries =
-            (pchar '@' .>> spaces >>. pSeriesList)
-            |>> Some
-        (pSub .>>. (pArgs <|> preturn None) .>>. (pSeries <|> preturn None))
-        |>> (fun ((sub, args), series) ->
-            Indicator {
-                Name = command
-                Sub = sub
-                Args = defaultArg args []
-                Series = defaultArg series []
-            })
+        let cmdLC = command.ToLowerInvariant()
+        opt (attempt (pchar '.' >>. spaces >>. pIdentifier .>> spaces |>> fun s -> s.ToLowerInvariant())) >>= fun subOpt ->
+        let pArgs = attempt (pchar ':' >>. spaces >>. pArgList) <|> preturn []
+        pArgs >>= fun args ->
+        opt pSeriesList >>= fun seriesOpt ->
+        spaces >>= fun _ ->
+        preturn (
+            let hasArgs = args <> []
+            let nameIsColumn = Set.contains cmdLC columnNames && subOpt.IsNone && not hasArgs && seriesOpt.IsNone
+            if nameIsColumn then Column cmdLC
+            else Indicator { Name = cmdLC; Sub = subOpt; Args = args; Series = defaultArg seriesOpt [] })
 
     let private pPrimary : Parser<Expr, unit> =
         choice [
-            attempt (pstring "-" .>> spaces >>. pfloat .>> spaces >>= fun v ->
+            attempt (pchar '(' >>. spaces >>. pCrossRef .>> spaces .>> pchar ')' .>> spaces)
+            attempt (pstring "-" >>. spaces >>. pfloat .>> spaces >>= fun v ->
                 if System.Double.IsFinite v then preturn (Number -v)
                 else fail "expected a finite number")
-            pNumber
-            (attempt (pchar '(' .>> spaces >>. pExprRef .>> pchar ')' .>> spaces))
-            (pIdentifier .>> spaces >>= fun name ->
-                let name = name.ToLowerInvariant()
-                if Set.contains name columnNames then preturn (Column name)
-                else preturn (Indicator { Name = name; Sub = None; Args = []; Series = [] }))
+            attempt (pNumber)
+            pIndicatorCore
         ]
 
-    let private pChain (pOperand: Parser<Expr, unit>) (pOp: Parser<BinaryOp, unit>) : Parser<Expr, unit> =
-        pOperand .>>. many (pOp .>>. pOperand)
+    let private pChainWs (pOperand: Parser<Expr, unit>) (pOp: Parser<BinaryOp, unit>) : Parser<Expr, unit> =
+        pOperand .>>. many (attempt (spaces >>. pOp .>> spaces .>>. pOperand))
         |>> (fun (first, rest) ->
             List.fold (fun acc (op, rhs) -> Binary (op, acc, rhs)) first rest)
 
     let private pUnaryRef, pUnaryRefImpl = createParserForwardedToRef<Expr, unit> ()
 
     let private pUnary : Parser<Expr, unit> =
-        let pOp = (strWs "-" >>% Negate) <|> (strWs "~" >>% Not)
-        (attempt (pOp .>>. pUnaryRef |>> (fun (op, e) -> Unary (op, e))))
+        let pOp = (pstring "-" >>% Negate) <|> (pstring "~" >>% Not)
+        (attempt (pOp .>> spaces .>>. pUnaryRef |>> (fun (op, e) -> Unary (op, e))))
         <|> pPrimary
 
     do pUnaryRefImpl.Value <- pUnary
 
-    let private pMultiplicative = pChain pUnary (pMul <|> pDiv)
-    let private pAdditive       = pChain pMultiplicative (pAdd <|> pSub)
+    let private pMultiplicative = pChainWs pUnary (pMul <|> pDiv)
+    let private pAdditive       = pChainWs pMultiplicative (pAdd <|> pSub)
 
     let private pComparison : Parser<Expr, unit> =
-        pAdditive .>>. (opt ((pLe <|> pLt <|> pEq <|> pNe <|> pGe <|> pGt) .>>. pAdditive))
+        let pCompOp = attempt pLe <|> attempt pGe <|> attempt pEq <|> attempt pNe <|> pGt <|> pLt
+        pAdditive .>>. opt (attempt (spaces >>. pCompOp .>> spaces .>>. pAdditive))
         |>> (function
             | lhs, None -> lhs
             | lhs, Some (op, rhs) -> Binary (op, lhs, rhs))
 
-    let private pLogical = pChain pComparison (pAnd <|> pXor <|> pOr)
-    let private pCross   = pChain pLogical (pCrossUp <|> pCrossDown <|> pCrossAny)
+    let private pLogical = pChainWs pComparison (pAnd <|> pXor <|> pOr)
+    let private pCross   = pChainWs pLogical (attempt pCrossUp <|> attempt pCrossDown <|> attempt pCrossAny)
 
-    let private pExpr : Parser<Expr, unit> = pCross .>> eof
+    do pCrossRefImpl.Value <- pCross
+
+    let private pExpr : Parser<Expr, unit> = spaces >>. pCross .>> eof
 
     do pExprRefImpl.Value <- pExpr
 
     let private toOutcome (input: string) : Choice<Expr, DirectiveError> =
-        let parser : Parser<Expr, unit> = spaces >>. pExpr
-        match run parser input with
+        match run pExpr input with
         | Success (expr, _, _) -> Choice1Of2 expr
         | Failure (msg, err, _) ->
             let pos = err.Position
