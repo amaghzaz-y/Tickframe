@@ -273,9 +273,9 @@ let main argv =
                       ""
                       "- **Parse** — directive string → `Expr` (FParsec), independent of N."
                       "- **Eval (pure)** — 80-row fixture, column/arithmetic/comparison/cross/logical."
-                      "- **Lookback** — `Directive.lookback` (no FacioQuo call)."
-                      "- **Scale (indicator)** — `Directive.eval` at N=500/1000/5000/10000/20000 (FacioQuo `Bar`→`IReusable` bridge)."
-                      "- **Scale (pure)** — `close + open * 2` / `close // open` at same N (no FacioQuo)."
+                      "- **Lookback** — `Directive.lookback` (native)."
+                      "- **Scale (indicator)** — `Directive.eval` at N=500/1000/5000/10000/20000 (native `float[]` kernels)."
+                      "- **Scale (pure)** — `close + open * 2` / `close // open` at same N."
                       ""
                       sprintf "Environment: %s" env
                       ""
