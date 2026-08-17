@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../Tickframe.fsproj" />
+    <ProjectReference Include="../Tickframe.fsproj" />
   </ItemGroup>
 
 </Project>

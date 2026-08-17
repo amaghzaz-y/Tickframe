@@ -17,11 +17,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Contract.fs" />
-    <Compile Include="Parser.fs" />
-    <Compile Include="Registry.fs" />
-    <Compile Include="Evaluator.fs" />
-    <Compile Include="Library.fs" />
+    <Compile Include="src/Domain.fs" />
+    <Compile Include="src/Services.fs" />
+    <Compile Include="src/Infrastructure.fs" />
+    <Compile Include="src/Evaluator.fs" />
+    <Compile Include="src/Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
