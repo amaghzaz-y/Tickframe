@@ -1,8 +1,7 @@
 # FacioQuo v3 (3.0.0) — verified API reference for Tickframe Registry.fs
 
 Verified by inspecting `FacioQuo.Stock.Indicators.xml` from the NuGet package
-(2026-08-17). Use these signatures EXACTLY; the spec's `ToSma(...)`/`Bar` naming
-assumptions are outdated.
+(2026-08-17). Use these signatures EXACTLY.
 
 ## Namespaces and types
 

@@ -1,10 +1,4 @@
-// Evaluator tests (specs 04, 06, 07).
-//
-// Indicator-using tests are guarded on the registry: Registry.fs is still a stub
-// (`IndicatorRegistry.table` is empty), so `IndicatorRegistry.resolve` raises for every
-// name until the registry agent lands. Each registry-dependent test checks
-// `IndicatorRegistry.tryResolve` first and skips (passes as an empty test) when the
-// registry is not yet implemented. xUnit treats a passing empty test as success.
+// Evaluator tests — directive evaluation, errors, and lookback.
 module Tickframe.Tests.EvaluatorTests
 
 open System
@@ -53,7 +47,7 @@ let private assertArrayEqual (expected: 'T[]) (actual: 'T[]) =
         Assert.Equal<'T>(expected.[i], actual.[i])
 
 // ---------------------------------------------------------------------------
-// Spec 07 — evaluator table: pure cases (no registry needed)
+// Evaluator — pure cases (no indicator needed)
 // ---------------------------------------------------------------------------
 
 [<Fact>]
@@ -80,7 +74,7 @@ let ``close column has no NaN warm-up rows`` () =
     Assert.DoesNotContain(a, fun x -> Double.IsNaN x)
 
 // ---------------------------------------------------------------------------
-// Spec 07 — evaluator table: registry-guarded cases
+// Evaluator — indicator-backed cases
 // ---------------------------------------------------------------------------
 
 [<Fact>]
@@ -103,7 +97,7 @@ let ``rsi:14 > close evaluates to a Bool series of length 80`` () =
     else
         let b = boolOf (Directive.eval frame "rsi:14 > close")
         Assert.Equal(80, b.Length)
-        // NaN comparisons are always false (spec 04), so the warm-up rows read false.
+        // NaN comparisons are always false, so the warm-up rows read false.
         Assert.False(b.[0])
 
 [<Fact>]
@@ -193,7 +187,7 @@ let ``repeat at close greater than open evaluates to a Bool series of length 80`
         Assert.Equal(80, b.Length)
 
 // ---------------------------------------------------------------------------
-// Spec 07 — cross semantics on tiny hand-made frames (no registry needed)
+// Cross semantics on tiny hand-made frames
 // ---------------------------------------------------------------------------
 
 let private candle (ts: DateTime) (o: decimal) (h: decimal) (l: decimal) (c: decimal) (v: decimal) : Candle =
@@ -254,14 +248,14 @@ let ``crosses stay false when the series never cross`` () =
 [<Fact>]
 let ``NaN operand makes all cross comparisons false`` () =
     // (0 / 0) is NaN at every row; every cross comparison involving NaN is false
-    // (spec 04), so no cross can fire, including at i = 0.
+    // so no cross can fire, including at i = 0.
     for directive in [ "(0 / 0) // close"; "(0 / 0) \\ close"; "(0 / 0) >< close" ] do
         let b = boolOf (Directive.eval crossUpFrame directive)
         Assert.Equal(3, b.Length)
         assertArrayEqual [| false; false; false |] b
 
 // ---------------------------------------------------------------------------
-// Spec 07 — comparison and arithmetic semantics (no registry needed)
+// Comparison and arithmetic semantics
 // ---------------------------------------------------------------------------
 
 [<Fact>]
@@ -336,7 +330,7 @@ let ``number literals evaluate to a constant series`` () =
         Assert.Equal(42.0, a.[i])
 
 // ---------------------------------------------------------------------------
-// Spec 07 — type error tests (no registry needed)
+// Type error tests
 // ---------------------------------------------------------------------------
 
 [<Fact>]
@@ -385,7 +379,7 @@ let ``unknown sub-command raises DirectiveValueError`` () =
     |> ignore
 
 // ---------------------------------------------------------------------------
-// Spec 06 — lookback on pure expressions (no registry needed)
+// Lookback on pure expressions
 // ---------------------------------------------------------------------------
 
 [<Fact>]

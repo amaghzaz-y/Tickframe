@@ -1,11 +1,11 @@
-// Shared fixtures and helpers for Tickframe tests (spec 07).
+// Shared fixtures and helpers for Tickframe tests.
 module Tickframe.Tests.Shared
 
 open System
 open Xunit
 open Tickframe
 
-/// Synthetic OHLCV fixture from spec 07: 80 rows, increasing timestamps, hand-checked values.
+/// Synthetic OHLCV fixture: 80 rows, increasing timestamps, hand-checked values.
 let candles: Candle[] =
     [| for i in 1..80 ->
            { Timestamp = DateTime(2024, 1, 1).AddMinutes(float i)
