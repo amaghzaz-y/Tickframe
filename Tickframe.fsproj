@@ -3,7 +3,6 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>3391</NoWarn>
 
     <!-- Package metadata for NuGet publishing -->
     <PackageId>Tickframe</PackageId>
@@ -18,6 +17,13 @@
 
   <ItemGroup>
     <Compile Include="src/Domain.fs" />
+    <Compile Include="src/Indicators/Common.fs" />
+    <Compile Include="src/Indicators/Trend.fs" />
+    <Compile Include="src/Indicators/Momentum.fs" />
+    <Compile Include="src/Indicators/Volatility.fs" />
+    <Compile Include="src/Indicators/Volume.fs" />
+    <Compile Include="src/Indicators/Directional.fs" />
+    <Compile Include="src/Indicators/Price.fs" />
     <Compile Include="src/Services.fs" />
     <Compile Include="src/Infrastructure.fs" />
     <Compile Include="src/Evaluator.fs" />
@@ -26,7 +32,6 @@
 
   <ItemGroup>
     <PackageReference Include="FParsec" Version="1.1.1" />
-    <PackageReference Include="FacioQuo.Stock.Indicators" Version="3.0.0" />
   </ItemGroup>
 
   <ItemGroup>
