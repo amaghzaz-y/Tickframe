@@ -43,8 +43,14 @@ jobs:
         with:
           name: nuget
           path: artifacts
-      - if: ${{ vars.NUGET_API_KEY != '' || secrets.NUGET_API_KEY != '' }}
-        run: dotnet nuget push "artifacts/*.nupkg" --api-key "${{ secrets.NUGET_API_KEY || vars.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+      - env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY || vars.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "NUGET_API_KEY not set — skipping NuGet push."
+            exit 0
+          fi
+          dotnet nuget push "artifacts/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
       - run: gh release upload "${{ github.event.release.tag_name }}" artifacts/*.nupkg --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
